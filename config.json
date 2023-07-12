@@ -1,6 +1,1 @@
-{
-  "server": {
-    "dns": "tf5.nngm.de",
-    "port": 22
-  }
-}
+{"server": {"dns": "tf5.nngm.de", "port": 22}}

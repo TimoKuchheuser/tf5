@@ -1,8 +1,1 @@
-{
-  "sites": {
-    "Cologne": {
-      "short": "CGN",
-      "publickey": "filename.key"
-    }
-  }
-}
+{"sites": {"Cologne": {"short": "CGN", "publickey": "filename.key"}}}
