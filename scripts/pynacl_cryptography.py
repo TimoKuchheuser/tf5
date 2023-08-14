@@ -3,8 +3,11 @@ import os
 import tarfile
 from typing import IO
 import nacl.utils
+from nacl.hash import blake2b
 from nacl.encoding import Base64Encoder, RawEncoder
 from nacl.public import PrivateKey, PublicKey, Box
+from nacl.exceptions import CryptoError
+from nacl.secret import SecretBox
 
 project_root = os.path.dirname(os.path.dirname(__file__))
 pub_keys_path = os.path.join(project_root, "keys", "public")
@@ -116,6 +119,7 @@ def create_archive(uid: str, orig_site: str, receiv_site: str) -> IO:
         except OSError as err:
             print("Failed to create archive from {} to be sent to {}: {}{}Error: {}".format(orig_site,receiv_site,archive_outpath,"\n",err))
 
+# Maybe depricated if we need to stick to XSalsa20-Poly1305 
 def encrypt_archive(uid: str, orig_site: str, receiv_site: str) -> IO:
     priv_key_orig = import_priv_key(orig_site)
     pub_key_receiv = import_pub_key(receiv_site)
@@ -153,7 +157,105 @@ def encrypt_archive(uid: str, orig_site: str, receiv_site: str) -> IO:
                     print("Failed to encrypt archive for {} from {} to be sent to {}: {}{}Error: {}".format(uid,orig_site,receiv_site,enc_archive_path,"\n",err))
         except OSError as err:
             print("Could not open archive {}: {}".format(archive_path,err))
-  
+
+
+def blake2b_encrypt_archive(uid: str, orig_site: str, receiv_site: str) -> IO | str:
+    priv_key_orig = import_priv_key(orig_site)
+    pub_key_receiv = import_pub_key(receiv_site)
+
+    # Path to archive from origin site
+    archive_filename = orig_site + "_" + receiv_site + "_" + uid + ".tar.gz"
+    uid_tmp = os.path.join(files_path, uid, str("to_" + receiv_site), "tmp")
+    archive_path = os.path.join(uid_tmp, archive_filename)
+
+    # Box with the private key from original site
+    # and the receiver's public key
+    orig_box = Box(priv_key_orig, pub_key_receiv)
+    # Shared key derived from priv_key_orig + pub_key_receiv
+    # Identical to priv_key_receiv + pub_key_orig
+    shared_key = orig_box.shared_key()
+
+    # blake2b algorithm used to replace a key derivation function
+    master_key = shared_key
+    derivation_salt = nacl.utils.random(16)
+    symmetric_key = blake2b(b'', key=master_key, salt=derivation_salt,
+                            encoder=RawEncoder)
+    
+    # Create a SecretBox instance with the derived symmetric key
+    secret_box = SecretBox(symmetric_key)
+
+    # Generate a random nonce (use a secure random generator)
+    nonce = nacl.utils.random(SecretBox.NONCE_SIZE)
+    
+    # Try to open and read archive as binary
+    if os.path.isfile(archive_path):
+        try:
+            with open(archive_path, "rb") as f:
+                archive = f.read()       
+
+            # Encrypt the archive using the SecretBox
+            # Does so using XSalsa20-Poly1305
+            enc_archive = secret_box.encrypt(archive, nonce)
+            
+            enc_archive_filename = orig_site + "_" + receiv_site + "_" + uid + ".enc.tar.gz"
+            enc_archive_path = os.path.join(uid_tmp,enc_archive_filename)
+
+            if not os.path.isfile(enc_archive_path):
+                try:
+                    with open(enc_archive_path, "wb") as f:
+                        f.write(enc_archive)
+                    print("Successfully encrypted archive for {} from {} to be sent to {}: {}".format(uid,orig_site,receiv_site,enc_archive_path))
+
+
+                    # Encode/Decode and return nonce and derivation_salt, as needed in json file for decryption
+                    nonce_b64 = Base64Encoder.encode(nonce)
+                    derivation_salt_b64 = Base64Encoder.encode(derivation_salt)
+                    nonce_b64_utf_8 = nonce_b64.decode("utf-8")
+                    derivation_salt_b64_utf_8 = derivation_salt_b64.decode("utf-8")
+                    
+                    return nonce_b64_utf_8,derivation_salt_b64_utf_8
+                
+                except OSError as err:
+                    print("Failed to encrypt archive for {} from {} to be sent to {}: {}{}Error: {}".format(uid,orig_site,receiv_site,enc_archive_path,"\n",err))
+        except OSError as err:
+            print("Could not open archive {}: {}".format(archive_path,err))
+
+def encrypt_archive_new(uid: str, orig_site: str, receiv_site: str) -> IO:
+    pass
+    # priv_key_orig = import_priv_key(orig_site)
+    # pub_key_receiv = import_pub_key(receiv_site)
+
+    # # This must be kept secret, this is the combination to your safe
+    # key = nacl.utils.random(nacl.secret.SecretBox.KEY_SIZE)
+    # print("Key:", key)
+
+    # # This is your safe, you can use it to encrypt or decrypt messages
+    # box = nacl.secret.SecretBox(key)
+
+    # # Path to archive from origin site
+    # archive_filename = orig_site + "_" + receiv_site + "_" + uid + ".tar.gz"
+    # uid_tmp = os.path.join(files_path, uid, str("to_" + receiv_site), "tmp")
+    # archive_path = os.path.join(uid_tmp, archive_filename)
+
+    # # Try to open and read archive as binary
+    # if os.path.isfile(archive_path):
+    #     try:
+    #         with open(archive_path, "rb") as f:
+    #             archive = f.read()
+            
+    #         nonce = nacl.utils.random(nacl.secret.SecretBox.NONCE_SIZE)
+    #         encrypted = box.encrypt(archive, nonce)
+    #         assert len(encrypted) == len(archive) + box.NONCE_SIZE + box.MACBYTES
+
+    #     except OSError as err:
+    #         print("Could not open archive {}: {}".format(archive_path,err))
+
+# create_new_keypair("CGN")
+# create_new_keypair("DRE")
+# create_archive("patient1", "DRE", "CGN")
+nonce,derivation_salt = blake2b_encrypt_archive("patient1", "DRE", "CGN")
+
+
 def decrypt_archive(uid: str, orig_site: str, receiv_site: str) -> IO:
     priv_key_receiv = import_priv_key(receiv_site)
     pub_key_orig = import_pub_key(orig_site)
