@@ -14,7 +14,7 @@ pub_keys_path = os.path.join(project_root, "keys", "public")
 priv_keys_path = os.path.join(project_root, "keys", "private")
 files_path = os.path.join(project_root, "files")
 
-# Timestamp for filenames
+# Timestamp object for filenames
 dateTimeObj = datetime.datetime.now(tz=None)
 timestamp = (
     str(dateTimeObj.year)
@@ -222,6 +222,8 @@ def decrypt_archive(pt_id: str, orig_site: str, receiv_site: str) -> IO:
     # and the public key from the origin site
     receiv_box = Box(priv_key_receiv, pub_key_orig)
 
+    # @TODO modify timestamp variable to use regular expression or sidecard timestamp info
+
     # Path to encrypted archive from origin site
     to_receiv_dir = os.path.join(files_path, pt_id, str("to_" + receiv_site))
     pt_id_temp = os.path.join(to_receiv_dir, "tmp")
@@ -232,6 +234,7 @@ def decrypt_archive(pt_id: str, orig_site: str, receiv_site: str) -> IO:
 
     # Open and decrypt archive
 
+    #this will fail because the time stamp will be wrong
     if os.path.isfile(enc_archive_path):
         try:
             with open(enc_archive_path, "rb") as f:
