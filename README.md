@@ -4,8 +4,6 @@ All software requirements and installation instructions are found in [SETUP.md](
 
 ## Graphic workflow
 
-![TF5_Architektur](https://github.com/TimoKuchheuser/tf5/assets/130909048/f5c7f755-c57f-4b80-8027-4ea9db17a9a2)
-
 ## Onboarding process and key-pair generation
 Before any data can be transferred, the main script from the repository has to be executed with the key parameter and the abbreviated name of the center, which can be found in the file [sites.json](sites.json). This will generate a Curve25519 key pair. The secret key will be saved in [keys/private](keys/private) and the public under [keys/public](keys/public). The secret key must <ins>never</ins> be shared with anyone and will not be pushed to the repository due to the presence of the [.gitignore](keys/private/.gitignore) file, unlike its corresponding public key.The user has to email one of the administrators, [Julia Wiggeshoff](mailto:julia.wiggeshoff@uk-koeln.de), [Timo Kuchheuser](mailto:timo.kuchheuser@uk-koeln.de), or [Oliver Kutz](mailto:Oliver.Kutz@ukdd.de), their public key, which we will add to the repository. Next, the responsible person for the center will receive two separate emails, one with their username and the other with the password to access the server from the TF5 project, which will be used to transfer data from the origin site to the receiving site.
 
